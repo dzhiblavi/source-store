@@ -40,6 +40,7 @@
  */
 
 #include "md5.h"
+#include "md5_accumulator.h"
 #include <cstring>
 #include <ostream>
 
@@ -62,14 +63,8 @@ std::ostream& operator<<(std::ostream& os, md5 const& hash)
 
 extern "C" void md5_compress(md5* state, char const* block);
 
-md5 md5_hash(char const* message, size_t len)
+void md5_accumulate(char const* message, size_t len, md5& hash)
 {
-    md5 hash;
-    hash.a = UINT32_C(0x67452301);
-    hash.b = UINT32_C(0xEFCDAB89);
-    hash.c = UINT32_C(0x98BADCFE);
-    hash.d = UINT32_C(0x10325476);
-
 #define LENGTH_SIZE 8  // In bytes
 
     size_t off;
@@ -79,10 +74,11 @@ md5 md5_hash(char const* message, size_t len)
     char block[BLOCK_LEN] = {};
     size_t rem = len - off;
     memcpy(block, message + off, rem);
-    
+
     block[rem] = (char)0x80;
     rem++;
-    if (BLOCK_LEN - rem < LENGTH_SIZE) {
+    if (BLOCK_LEN - rem < LENGTH_SIZE)
+    {
         md5_compress(&hash, block);
         memset(block, 0, sizeof(block));
     }
@@ -92,6 +88,12 @@ md5 md5_hash(char const* message, size_t len)
     for (int i = 1; i < LENGTH_SIZE; i++, len >>= 8)
         block[BLOCK_LEN - LENGTH_SIZE + i] = static_cast<char>(len & 0xFFU);
     md5_compress(&hash, block);
+}
 
-    return hash;
+md5 md5_hash(char const* message, size_t len)
+{
+    md5_accumulator acc{};
+    md5_accumulate(message, len, acc.get_hash());
+
+    return acc.get_hash();
 }

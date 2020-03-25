@@ -20,4 +20,6 @@ struct md5
 
 std::ostream& operator<<(std::ostream& os, md5 const& hash);
 
+void md5_accumulate(char const* message, size_t len, md5& hash);
+
 md5 md5_hash(char const* message, size_t len);

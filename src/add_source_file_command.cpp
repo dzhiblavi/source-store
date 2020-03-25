@@ -16,10 +16,10 @@ void add_source_file_command(size_t argc, char* argv[])
     {
         char const* filename = argv[i];
 
-        // file on disk can be changed concurrectly
+        // file on disk can be changed concurrently
         std::vector<char> text = read_whole_file(filename);
         md5 hash = md5_hash(text.data(), text.size());
-        
+
         std::stringstream ss;
         ss << hash;
         write_whole_file({objects_dir.get_fd(), ss.str()}, text);
