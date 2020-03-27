@@ -34,6 +34,8 @@ struct cu_header
     Dwarf_Half     header_cu_type = 0;
 };
 
+int check_for_error(char const* what, char const* func, int res);
+
 class debug
 {
 public:
@@ -66,8 +68,6 @@ public:
     int next_cu_header(Dwarf_Bool is_info, cu_header* cu, Dwarf_Error* perror = nullptr);
 
     int sibling_of(Dwarf_Die r, Dwarf_Die* res, bool is_info, Dwarf_Error* perror = nullptr);
-
-    void traverse_dies(Dwarf_Die root, std::function<void(debug&, Dwarf_Die, Dwarf_Error*)> const& f, Dwarf_Error* perror);
 
     [[nodiscard]] native_handle_t native_handle() noexcept;
 };

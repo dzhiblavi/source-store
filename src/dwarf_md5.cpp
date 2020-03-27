@@ -1,11 +1,10 @@
 #include "dwarf_md5.h"
 
 #include <fcntl.h>
-#include <cassert>
-#include <unistd.h>
 #include <iostream>
 
 #include "dwarf_debug.h"
+#include "file_descriptor.h"
 
 namespace
 {
@@ -18,32 +17,23 @@ void process_cu_die(dwarf::debug& dbg, Dwarf_Die cu_die, std::vector<std::pair<s
     int lres = 0;
     Dwarf_Line_Context line_context = 0;
 
-    lres = dwarf_srclines_b(cu_die, &lineversion,
-                            &table_count, &line_context,
-                            nullptr);
-    if (lres == DW_DLV_OK)
-    {
-        lres = dwarf_srclines_from_linecontext(line_context,
-                                               &linebuf, &linecount, nullptr);
-    }
-    else
-    {
-        // TODO: error handling
-        assert(false);
-    }
+    dwarf::check_for_error("dwarf_srclines_b(...) failed", __func__
+            , dwarf_srclines_b(cu_die, &lineversion
+            , &table_count, &line_context
+            , nullptr));
+
+    dwarf::check_for_error("dwarf_srclines_from_linecontext(...) failed", __func__
+            , dwarf_srclines_from_linecontext(line_context
+            , &linebuf, &linecount, nullptr));
 
     const char* name = 0;
     Dwarf_Signed baseindex = 0;
     Dwarf_Signed file_count = 0;
     Dwarf_Signed endindex = 0;
 
-    lres = dwarf_srclines_files_indexes(line_context,
-                                        &baseindex, &file_count, &endindex, nullptr);
-    if (lres != DW_DLV_OK)
-    {
-        // TODO: error handling
-        assert(false);
-    }
+    dwarf::check_for_error("dwarf_srclines_files_indexes(...) failed", __func__
+            , dwarf_srclines_files_indexes(line_context
+            , &baseindex, &file_count, &endindex, nullptr));
 
     for (int i = baseindex; i < endindex; ++i)
     {
@@ -52,19 +42,14 @@ void process_cu_die(dwarf::debug& dbg, Dwarf_Die cu_die, std::vector<std::pair<s
         Dwarf_Unsigned flength = 0;
         Dwarf_Form_Data16 *md5data = 0;
 
-        lres = dwarf_srclines_files_data_b(line_context, i,
-                                           &name, &dirindex, &modtime, &flength,
-                                           &md5data, nullptr);
-        if (lres != DW_DLV_OK)
-        {
-            // TODO: error handling
-            assert(false);
-        }
+        dwarf::check_for_error("dwarf_srclines_files_data_b(...) failed", __func__
+             , dwarf_srclines_files_data_b(line_context, i
+             , &name, &dirindex, &modtime, &flength
+             , &md5data, nullptr));
 
-        if (md5data == nullptr) {
-            // :NOTE: no md5 at all
-            // TODO: error handling
-            assert(false);
+        if (md5data == nullptr)
+        {
+            DWARF_THROW_ERROR("md5 value not found");
         }
 
         md5 hash{};
@@ -80,7 +65,7 @@ std::vector<std::pair<std::string, md5>> read_cu_list(dwarf::debug& dbg)
     Dwarf_Bool is_info = 1;
     dwarf::cu_header cu;
 
-    for (int cu_number = 0; ;++cu_number)
+    for (int cu_number = 0; ; ++cu_number)
     {
         Dwarf_Die no_die = 0;
         Dwarf_Die cu_die = 0;
@@ -101,18 +86,15 @@ namespace dwarf
 {
 std::vector<std::pair<std::string, md5>> get_source_files(char const *filename)
 {
-    // TODO: OMG FIX IT!
-    int fd = open(filename, O_RDONLY);
+    file_descriptor fd = file_descriptor::open(file_location(filename), file_flags::read_only);
 
-    dwarf::debug dbg(fd);
-    auto r = read_cu_list(dbg);
+    dwarf::debug dbg(fd.get_fd());
 
-    close(fd);
-    return r;
+    return read_cu_list(dbg);
 }
 }
 
-void get_source_files(size_t argc, char* argv[])
+void list_source_files(size_t argc, char* argv[])
 {
     if (argc == 0)
         throw std::runtime_error("filename expected");

@@ -1,6 +1,7 @@
+#include <iostream>
 #include "dwarf_debug.h"
 
-namespace
+namespace dwarf
 {
 int check_for_error(char const* what, char const* func, int res)
 {
@@ -11,10 +12,7 @@ int check_for_error(char const* what, char const* func, int res)
 
     return res;
 }
-}
 
-namespace dwarf
-{
 debug::native_handle_t debug::native_handle() noexcept
 {
     return handle_;
@@ -79,47 +77,5 @@ int debug::sibling_of(Dwarf_Die r, Dwarf_Die* res, bool is_info, Dwarf_Error* pe
 {
     return check_for_error("sibling_of failed", __func__, dwarf_siblingof_b(native_handle()
             , r, is_info, res, perror));
-}
-
-void debug::traverse_dies(Dwarf_Die root, std::function<void(debug&, Dwarf_Die, Dwarf_Error*)> const& f
-        , Dwarf_Error* perror)
-{
-    Dwarf_Debug dbg = native_handle();
-    int res = DW_DLV_ERROR;
-    Dwarf_Die cur_die = root;
-    Dwarf_Die child = 0;
-    Dwarf_Error *errp = 0;
-
-    f(*this, root, perror);
-
-    for (;;)
-    {
-        Dwarf_Die sib_die = 0;
-
-        // TODO: implement child same way as sibling_of
-        res = check_for_error("dwarf_child() failed", __func__, dwarf_child(cur_die, &child, errp));
-
-        if (res == DW_DLV_OK)
-        {
-            traverse_dies(child, f, perror);
-            dwarf_dealloc(dbg, child, DW_DLA_DIE);
-            child = 0;
-        }
-
-        res = sibling_of(cur_die, &sib_die, 1, perror);
-
-        if (res == DW_DLV_NO_ENTRY)
-        {
-            break;
-        }
-
-        if (cur_die != root)
-        {
-            dwarf_dealloc(dbg, cur_die, DW_DLA_DIE);
-        }
-
-        cur_die = sib_die;
-        f(*this, cur_die, perror);
-    }
 }
 } // namespace dwarf
